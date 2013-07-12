@@ -3,6 +3,12 @@
 
 import requests
 
+from celery import Celery
+
+celery = Celery('tasks', broker='amqp://guest@localhost//')
+
+
+@celery.task
 def get(location):
     r = requests.get(location)
     print(r.status_code)
