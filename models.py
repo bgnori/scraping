@@ -44,7 +44,7 @@ class Schemes(Base):
     @classmethod
     def get(self, s):
         session = get_session()
-        return session.query(Schemes).get(s)
+        return session.query(Schemes).filter(Schemes.scheme==s).scalar()
 
     @classmethod
     def have(cls, s):
