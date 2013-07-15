@@ -66,7 +66,7 @@ class Authorities(Base):
     __tablename__ = 'Authorities'
     id = Column(Integer, primary_key=True)
     host = Column(String, nullable=False)
-    port = Column(String, nullable=True)
+    port = Column(Integer, nullable=True)
 
     @classmethod
     def add(cls, **kw):
@@ -94,7 +94,9 @@ class Authorities(Base):
 
     @property
     def as_netloc(self):
-        return self.host + ':' + self.port
+        if self.port:
+            return '{}:{}'.format(self.host, self.port)
+        return self.host
 
 
 class URLs(Base):
@@ -197,11 +199,14 @@ class Pages(Base):
         made = obj.id
         return session.query(Pages).get(made)
 
+    @classmethod
+    def from_id(cls, id):
+        session = get_session()
+        return session.query(Pages).get(id)
+
     @property
     def url(self):
         return self.url_obj.unparse()
-
-
 
 
 
