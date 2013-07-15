@@ -121,13 +121,11 @@ class URLs(Base):
     fragment = Column(String, nullable=False)
     
     @classmethod
-    def add(cls, **kw):
+    def add(cls, scheme, host, port, path, params, query, fragment):
         session = get_session()
-        kw['scheme_id'] = Schemes.have(kw['scheme']).id
-        del kw['scheme']
-        kw['authority_id'] = Authorities.have(kw['host'], kw['port']).id
-        del kw['host']
-        del kw['port']
+        kw = dict(path=path, params=params, query=query, fragment=fragment)
+        kw['scheme_id'] = Schemes.have(scheme).id
+        kw['authority_id'] = Authorities.have(host, port).id
 
         obj = cls(**kw)
         session.add(obj)
@@ -136,7 +134,7 @@ class URLs(Base):
         return session.query(URLs).get(made)
 
     @classmethod
-    def get(cls, scheme, host, port, path, query, fragment):
+    def get(cls, scheme, host, port, path, params, query, fragment):
         session = get_session()
         scheme = Schemes.get(scheme)
         au = Authorities.get(host, port)
@@ -151,7 +149,7 @@ class URLs(Base):
                 scalar()
 
     @classmethod
-    def have(cls, scheme, host, port, path, query, fragment):
+    def have(cls, scheme, host, port, path, params, query, fragment):
         r = cls.get(scheme, host, port, path, params, query, fragment)
         if r is None:
             r = cls.add(scheme, host, port, path, params, query, fragment)
@@ -179,14 +177,33 @@ class URLs(Base):
 class Pages(Base):
     __tablename__ = 'Pages'
     id = Column(Integer, primary_key=True)
-    url = Column(Integer, ForeignKey(URLs.id))
+    url_id = Column(Integer, ForeignKey(URLs.id))
+    url_obj = relationship(URLs, primaryjoin=url_id==URLs.id)
+
     got_at = Column(DateTime)
     content = Column(String)
     encoding = Column(String)
 
     @classmethod
     def add(cls, **kw):
-        pass
+        session = get_session()
+        url = URLs.parse(kw['url'])
+        del kw['url']
+        kw['url_obj'] = url
+
+        obj = cls(**kw)
+        session.add(obj)
+        session.commit()
+        made = obj.id
+        return session.query(Pages).get(made)
+
+    @property
+    def url(self):
+        return self.url_obj.unparse()
+
+
+
+
 
 def create_all(conn):
     Base.metadata.create_all(conn)

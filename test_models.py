@@ -39,14 +39,18 @@ class BasicTestCase(unittest.TestCase):
         self.assertEqual(1, len(list(s.query(models.URLs))))
         self.assertEqual('foo://example.com:8042/over/there?name=ferret#nose', a.unparse())
 
-    def xtest_pages_add(self):
-        a = models.URLs.add(scheme='foo', host='example.com', port='8042',
-                path='/over/there', params='', query='name=ferret', fragment='nose')
+    def test_pages_add(self):
+        a = models.Pages.add(
+                url="foo://example.com:8042/over/there?name=ferret#nose",
+                encoding='utf-8',
+                content='foobarbuzz')
         s = models.get_session()
         self.assertEqual(1, len(list(s.query(models.Schemes))))
         self.assertEqual(1, len(list(s.query(models.Authorities))))
         self.assertEqual(1, len(list(s.query(models.URLs))))
         self.assertEqual(1, len(list(s.query(models.Pages))))
+        self.assertEqual('foobarbuzz', a.content)
+        self.assertEqual('utf-8', a.encoding)
 
 
 
