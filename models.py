@@ -87,6 +87,8 @@ class Authorities(Base):
 
     @classmethod
     def have(cls, host, port):
+        if not host:
+            return None
         r = cls.get(host, port)
         if r is None:
             r = cls.add(host=host, port=port)
@@ -113,7 +115,7 @@ class URLs(Base):
     scheme_id = Column(Integer, ForeignKey(Schemes.id), nullable=False)
     scheme_obj = relationship(Schemes, primaryjoin=scheme_id==Schemes.id)
 
-    authority_id = Column(Integer, ForeignKey(Authorities.id), nullable=False)
+    authority_id = Column(Integer, ForeignKey(Authorities.id), nullable=True)
     authority_obj = relationship(Authorities, primaryjoin=authority_id==Authorities.id)
 
 
@@ -127,7 +129,11 @@ class URLs(Base):
         session = get_session()
         kw = dict(path=path, params=params, query=query, fragment=fragment)
         kw['scheme_id'] = Schemes.have(scheme).id
-        kw['authority_id'] = Authorities.have(host, port).id
+
+
+        au = Authorities.have(host, port)
+        if au is not None:
+            kw['authority_id'] = au.id
 
         obj = cls(**kw)
         session.add(obj)

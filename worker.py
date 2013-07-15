@@ -18,7 +18,6 @@ def get(location):
     r = requests.get(location)
 
     if r.status_code == 200:
-        print(r.headers['content-type'])
         models.Pages.add(url=location, encoding=r.encoding, content=r.text)
 
 
@@ -31,5 +30,6 @@ def parse(page_id):
     t.make_links_absolute(page.url)
 
     for elem, attr, link, pos in t.iterlinks(): 
-        print(elem, attr, link, pos)
+        #print(elem, attr, link, pos)
+        models.URLs.parse(link)
 

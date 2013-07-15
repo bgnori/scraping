@@ -14,4 +14,3 @@ conn = engine.connect()
 models.get_session = scoped_session(sessionmaker(bind=conn))
 parse(1)
 
-
