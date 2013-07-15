@@ -5,7 +5,11 @@ from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
-from sqlalchemy.orm import relation, backref
+from sqlalchemy.orm import relation, backref, relationship
+
+
+from urllib.parse import urlparse, urlunparse
+
 
 get_session = None
 """
@@ -88,6 +92,10 @@ class Authorities(Base):
             r = cls.add(host=host, port=port)
         return r
 
+    @property
+    def as_netloc(self):
+        return self.host + ':' + self.port
+
 
 class URLs(Base):
     '''
@@ -100,18 +108,24 @@ class URLs(Base):
     '''
     __tablename__ = 'URLs'
     id = Column(Integer, primary_key=True)
-    authority = Column(Integer, ForeignKey(Authorities.id), nullable=False)
-    scheme = Column(Integer, ForeignKey(Schemes.id), nullable=False)
+    scheme_id = Column(Integer, ForeignKey(Schemes.id), nullable=False)
+    scheme_obj = relationship(Schemes, primaryjoin=scheme_id==Schemes.id)
+
+    authority_id = Column(Integer, ForeignKey(Authorities.id), nullable=False)
+    authority_obj = relationship(Authorities, primaryjoin=authority_id==Authorities.id)
+
 
     path = Column(String, nullable=False)
+    params = Column(String, nullable=False) #not for http.
     query = Column(String, nullable=False)
     fragment = Column(String, nullable=False)
     
     @classmethod
     def add(cls, **kw):
         session = get_session()
-        kw['scheme'] = Schemes.have(kw['scheme']).id
-        kw['authority'] = Authorities.have(kw['host'], kw['port']).id
+        kw['scheme_id'] = Schemes.have(kw['scheme']).id
+        del kw['scheme']
+        kw['authority_id'] = Authorities.have(kw['host'], kw['port']).id
         del kw['host']
         del kw['port']
 
@@ -120,6 +134,46 @@ class URLs(Base):
         session.commit()
         made = obj.id
         return session.query(URLs).get(made)
+
+    @classmethod
+    def get(cls, scheme, host, port, path, query, fragment):
+        session = get_session()
+        scheme = Schemes.get(scheme)
+        au = Authorities.get(host, port)
+
+        return session.query(URLs).\
+                filter(URLs.scheme == scheme).\
+                filter(URLs.authority == au).\
+                filter(URLs.path == path).\
+                filter(URLs.params == params).\
+                filter(URLs.query == query).\
+                filter(URLs.fragment == fragment).\
+                scalar()
+
+    @classmethod
+    def have(cls, scheme, host, port, path, query, fragment):
+        r = cls.get(scheme, host, port, path, params, query, fragment)
+        if r is None:
+            r = cls.add(scheme, host, port, path, params, query, fragment)
+        return r
+
+    @property
+    def authority(self):
+        return self.authority_obj.as_netloc
+    
+    @property
+    def scheme(self):
+        return self.scheme_obj.scheme
+
+    @classmethod
+    def parse(cls, s):
+        ''' we do not expect encoding, that means byte, not string'''
+        r = urlparse(s)
+        return cls.have(r.scheme, r.hostname, r.port, r.path, r.params, r.query, r.fragment)
+
+    def unparse(self):
+        ''' we do not expect encoding, that means byte, not string'''
+        return urlunparse((self.scheme, self.authority, self.path, self.params, self.query, self.fragment))
 
 
 class Pages(Base):
@@ -130,6 +184,9 @@ class Pages(Base):
     content = Column(String)
     encoding = Column(String)
 
+    @classmethod
+    def add(cls, **kw):
+        pass
 
 def create_all(conn):
     Base.metadata.create_all(conn)
