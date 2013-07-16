@@ -37,7 +37,11 @@ def parse(page_id):
 
 @celery.task
 def fetch():
-    with open('test', 'w') as f:
-        print('fetch!!', file=f)
+    u = models.URLs.head()
+    print(u.unparse())
+    u.mark(1)
+    
+
+
 
 

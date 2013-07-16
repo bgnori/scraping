@@ -6,7 +6,7 @@ from sqlalchemy.pool import QueuePool
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 
-from worker import get
+from tasks import get
 import models
 
 engine = create_engine('sqlite:///./moebius.sqlite', poolclass=QueuePool)
