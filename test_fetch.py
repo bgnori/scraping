@@ -6,12 +6,12 @@ from sqlalchemy.pool import QueuePool
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 
-from tasks import get
+from tasks import fetch 
 import models
 
 engine = create_engine('sqlite:///./moebius.sqlite', poolclass=QueuePool)
 conn = engine.connect()
 models.get_session = scoped_session(sessionmaker(bind=conn))
-get('http://jp.python-requests.org/en/latest/')
+fetch()
 
 

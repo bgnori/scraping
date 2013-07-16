@@ -123,6 +123,8 @@ class URLs(Base):
     params = Column(String, nullable=False) #not for http.
     query = Column(String, nullable=False)
     fragment = Column(String, nullable=False)
+
+    status = Column(Integer, nullable=False)
     
     @classmethod
     def add(cls, scheme, host, port, path, params, query, fragment):
@@ -130,10 +132,10 @@ class URLs(Base):
         kw = dict(path=path, params=params, query=query, fragment=fragment)
         kw['scheme_id'] = Schemes.have(scheme).id
 
-
         au = Authorities.have(host, port)
         if au is not None:
             kw['authority_id'] = au.id
+        kw['status'] = 0
 
         obj = cls(**kw)
         session.add(obj)
@@ -180,6 +182,23 @@ class URLs(Base):
     def unparse(self):
         ''' we do not expect encoding, that means byte, not string'''
         return urlunparse((self.scheme, self.authority, self.path, self.params, self.query, self.fragment))
+
+    @classmethod
+    def head(self):
+        session = get_session()
+        q = session.query(URLs).\
+                filter_by(status=0).\
+                filter(URLs.authority_id != None).\
+                filter(URLs.scheme_id != None).\
+                filter(URLs.scheme_id == 1).\
+                limit(1)
+        return q.scalar()
+
+    def mark(self, n):
+        session = get_session()
+        self.status = n
+        session.add(self)
+        session.commit()
 
 
 class Pages(Base):
