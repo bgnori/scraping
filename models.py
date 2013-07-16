@@ -126,6 +126,12 @@ class URLs(Base):
 
     status = Column(Integer, nullable=False)
     
+    def obtained(self):
+        session = get_session()
+        self.status = 1
+        session.add(self)
+        session.commit()
+
     @classmethod
     def add(cls, scheme, host, port, path, params, query, fragment):
         session = get_session()
@@ -135,6 +141,8 @@ class URLs(Base):
         au = Authorities.have(host, port)
         if au is not None:
             kw['authority_id'] = au.id
+        kw['status'] = 0
+
         kw['status'] = 0
 
         obj = cls(**kw)
