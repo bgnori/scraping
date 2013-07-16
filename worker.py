@@ -12,6 +12,7 @@ import models
 
 celery = Celery('tasks', broker='amqp://guest@localhost//')
 
+celery.config_from_object('celeryconfig')
 
 @celery.task
 def get(location):
@@ -32,4 +33,11 @@ def parse(page_id):
     for elem, attr, link, pos in t.iterlinks(): 
         #print(elem, attr, link, pos)
         models.URLs.parse(link)
+
+
+@celery.task
+def fetch():
+    with open('test', 'w') as f:
+        print('fetch!!', file=f)
+
 
