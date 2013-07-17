@@ -11,6 +11,6 @@ import models
 
 engine = create_engine('sqlite:///./moebius.sqlite', poolclass=QueuePool)
 conn = engine.connect()
-models.get_session = scoped_session(sessionmaker(bind=conn))
+models.get_session = scoped_session(sessionmaker(bind=conn, autocommit=True))
 parse(1)
 

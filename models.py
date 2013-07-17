@@ -233,6 +233,53 @@ class URLs(Base):
     def status(self):
         return self.status_obj.name
 
+    
+    @classmethod
+    def bulkparse(cls, xs):
+        ''' we do not expect encoding, that means byte, not string'''
+        session = get_session()
+        session.begin()
+        for s in xs:
+            r = urlparse(s)
+        
+            scheme = session.query(Schemes).filter(Schemes.scheme==r.scheme).scalar()
+            if scheme is None:
+                scheme = Schemes(scheme=r.scheme)
+                session.add(scheme)
+
+            authority = session.query(Authorities).\
+                filter(Authorities.host == r.hostname).\
+                filter(Authorities.port == r.port).\
+                scalar()
+            if authority is None and r.hostname is not None:
+                authority = Authorities(host=r.hostname, port=r.port)
+                session.add(authority)
+
+            query = session.query(URLs).\
+                filter(URLs.scheme_id == scheme.id).\
+                filter(URLs.path == r.path).\
+                filter(URLs.params == r.params).\
+                filter(URLs.query == r.query).\
+                filter(URLs.fragment == r.fragment)
+
+            if authority:
+                query = query.filter(URLs.authority_id == authority.id)
+
+            found = query.scalar()
+
+            if found is None:
+                found = cls(scheme_id=scheme.id, 
+                        authority_id=authority.id if authority else None,
+                        path=r.path, 
+                        params=r.params,
+                        query=r.query,
+                        fragment=r.fragment,
+                        status_id=cls.status_id_by_name('New'))
+                session.add(found)
+
+        session.commit()
+
+
     @classmethod
     def parse(cls, s):
         ''' we do not expect encoding, that means byte, not string'''

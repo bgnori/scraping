@@ -22,7 +22,7 @@ if True:
 
     engine = create_engine('sqlite:///./moebius.sqlite', poolclass=QueuePool)
     conn = engine.connect()
-    models.get_session = scoped_session(sessionmaker(bind=conn))
+    models.get_session = scoped_session(sessionmaker(bind=conn, autocommit=True))
 
 @celery.task
 def get(location):
@@ -43,9 +43,11 @@ def parse(page_id):
     t = lxml.html.fromstring(page.content)
     t.make_links_absolute(page.url)
 
-    for elem, attr, link, pos in t.iterlinks(): 
-        #print(elem, attr, link, pos)
-        models.URLs.parse(link)
+    def foo():
+        for elem, attr, link, pos in t.iterlinks(): 
+            yield link
+    
+    models.URLs.bulkparse(foo())
 
 
 @celery.task
