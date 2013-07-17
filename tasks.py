@@ -29,7 +29,8 @@ def get(location):
     r = requests.get(location)
 
     if r.status_code == 200:
-        models.Pages.add(url=location, encoding=r.encoding or 'ASCII', content=r.text)
+        models.Pages.add(url=location, http_encoding=r.encoding,
+                content=r.content)
         u = models.URLs.parse(location)
         u.mark('Got')
 

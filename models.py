@@ -269,7 +269,7 @@ class Pages(Base):
 
     got_at = Column(DateTime)
     content = Column(String)
-    encoding = Column(String)
+    http_encoding = Column(String)
     sha1hash = Column(String)
 
     @classmethod
@@ -280,7 +280,7 @@ class Pages(Base):
         kw['url_obj'] = url
 
         m = hashlib.sha1()
-        m.update(bytes(kw['content'], encoding=kw['encoding']))
+        m.update(kw['content'])
         kw['sha1hash'] = m.digest()
 
         obj = cls(**kw)
