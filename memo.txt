@@ -2,17 +2,18 @@
 
 いろいろ並行して走るプログラムになるのでメモ。
 
+
 module構成
 
 --- crawler
-getter
+tasks.get
   locationを与えられたら、そのPageを取得しDBにつっこむ. 取得済みとマークする
 
-parse
+tasks.parse
   DB内のPageを与えられたら、urlを取り出し、DBに入れる
   url抽出済み
 
-fetch
+tasks.fetch
   DB内のURLでまだ調査されていない物をgetterに渡す。作業中とマークする
 
 --- processinng

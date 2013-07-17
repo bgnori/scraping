@@ -29,9 +29,9 @@ def get(location):
     r = requests.get(location)
 
     if r.status_code == 200:
-        models.Pages.add(url=location, encoding=r.encoding, content=r.text)
+        models.Pages.add(url=location, encoding=r.encoding or 'ASCII', content=r.text)
         u = models.URLs.parse(location)
-        u.mark(2)
+        u.mark('Got')
 
 
 @celery.task
@@ -50,8 +50,12 @@ def parse(page_id):
 @celery.task
 def fetch():
     u = models.URLs.head()
+    assert u
     print(u.unparse())
-    get.delay(u)
-    u.mark(1)
-    
+    print(u.status)
+    if u.authority_id == 1:
+        get.delay(u.unparse())
+        u.mark('Requested')
+    else:
+        u.mark('Ignored')
 

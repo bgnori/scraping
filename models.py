@@ -9,6 +9,7 @@ from sqlalchemy.orm import relation, backref, relationship
 
 
 from urllib.parse import urlparse, urlunparse
+import hashlib
 
 
 get_session = None
@@ -101,6 +102,37 @@ class Authorities(Base):
         return self.host
 
 
+class URLStatus(Base):
+    __tablename__ = 'URLStatus'
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+
+    kind = (
+        dict(name='New', 
+            description='Newly got from parsed page or specified by invoker.'),
+        dict(name='Requested',
+            description='sent to get, subject of retrieval.'),
+        dict(name='Got',
+            description='Got Page/Resource'),
+        dict(name='Ignored',
+            description='Igonred by scraping project'),
+    )
+
+    @classmethod
+    def insert_predefines(cls):
+        session = get_session()
+        for x in cls.kind:
+            obj = cls(**x)
+            session.add(obj)
+        session.commit()
+
+    @classmethod
+    def resolve(cls, name):
+        session = get_session()
+        return session.query(URLStatus).filter_by(name=name).scalar()
+
+
 class URLs(Base):
     '''
         http://tools.ietf.org/html/rfc3986#section-3
@@ -124,53 +156,69 @@ class URLs(Base):
     query = Column(String, nullable=False)
     fragment = Column(String, nullable=False)
 
-    status = Column(Integer, nullable=False)
+    status_id = Column(Integer, ForeignKey(URLStatus.id), nullable=False)
+    status_obj = relationship(URLStatus, primaryjoin=status_id==URLStatus.id)
     
+
+    _cache = {}
+
+    @classmethod
+    def status_id_by_name(cls, name):
+        r = cls._cache.get(name, None)
+        if r is None:
+            r = URLStatus.resolve(name).id
+            cls._cache[name] = r
+        return r
+
     def obtained(self):
         session = get_session()
-        self.status = 1
+        self.status_id = self.status_id_by_name('Got')
         session.add(self)
         session.commit()
 
     @classmethod
-    def add(cls, scheme, host, port, path, params, query, fragment):
+    def add(cls, scheme, authority, path, params, query, fragment):
         session = get_session()
-        kw = dict(path=path, params=params, query=query, fragment=fragment)
-        kw['scheme_id'] = Schemes.have(scheme).id
+        obj = cls(
+            scheme_id=scheme.id,
+            authority_id= authority.id if authority else None,
+            status_id=cls.status_id_by_name('New'),
+            path=path, params=params, query=query, fragment=fragment)
 
-        au = Authorities.have(host, port)
-        if au is not None:
-            kw['authority_id'] = au.id
-        kw['status'] = 0
 
-        kw['status'] = 0
-
-        obj = cls(**kw)
         session.add(obj)
         session.commit()
         made = obj.id
         return session.query(URLs).get(made)
 
-    @classmethod
-    def get(cls, scheme, host, port, path, params, query, fragment):
-        session = get_session()
-        scheme = Schemes.get(scheme)
-        au = Authorities.get(host, port)
 
-        return session.query(URLs).\
-                filter(URLs.scheme == scheme).\
-                filter(URLs.authority == au).\
+
+    @classmethod
+    def get(cls, scheme, authority, path, params, query, fragment):
+        assert scheme
+
+        session = get_session()
+        query = session.query(URLs).\
+                filter(URLs.scheme_id == scheme.id).\
                 filter(URLs.path == path).\
                 filter(URLs.params == params).\
                 filter(URLs.query == query).\
-                filter(URLs.fragment == fragment).\
-                scalar()
+                filter(URLs.fragment == fragment)
+
+        if authority:
+            query = query.filter(URLs.authority_id == authority.id)
+
+        found = query.scalar()
+        return found
 
     @classmethod
     def have(cls, scheme, host, port, path, params, query, fragment):
-        r = cls.get(scheme, host, port, path, params, query, fragment)
-        if r is None:
-            r = cls.add(scheme, host, port, path, params, query, fragment)
+        scheme = Schemes.have(scheme)
+        authority = Authorities.have(host, port)
+
+        r = cls.get(scheme, authority, path, params, query, fragment)
+        if not r:
+            r = cls.add(scheme, authority, path, params, query, fragment)
         return r
 
     @property
@@ -180,6 +228,10 @@ class URLs(Base):
     @property
     def scheme(self):
         return self.scheme_obj.scheme
+
+    @property
+    def status(self):
+        return self.status_obj.name
 
     @classmethod
     def parse(cls, s):
@@ -192,19 +244,19 @@ class URLs(Base):
         return urlunparse((self.scheme, self.authority, self.path, self.params, self.query, self.fragment))
 
     @classmethod
-    def head(self):
+    def head(cls):
         session = get_session()
         q = session.query(URLs).\
-                filter_by(status=0).\
+                filter_by(status_id=cls.status_id_by_name('New')).\
                 filter(URLs.authority_id != None).\
                 filter(URLs.scheme_id != None).\
                 filter(URLs.scheme_id == 1).\
                 limit(1)
         return q.scalar()
 
-    def mark(self, n):
+    def mark(self, name):
         session = get_session()
-        self.status = n
+        self.status_id = self.status_id_by_name(name)
         session.add(self)
         session.commit()
 
@@ -218,6 +270,7 @@ class Pages(Base):
     got_at = Column(DateTime)
     content = Column(String)
     encoding = Column(String)
+    sha1hash = Column(String)
 
     @classmethod
     def add(cls, **kw):
@@ -225,6 +278,10 @@ class Pages(Base):
         url = URLs.parse(kw['url'])
         del kw['url']
         kw['url_obj'] = url
+
+        m = hashlib.sha1()
+        m.update(bytes(kw['content'], encoding=kw['encoding']))
+        kw['sha1hash'] = m.digest()
 
         obj = cls(**kw)
         session.add(obj)
@@ -245,6 +302,7 @@ class Pages(Base):
 
 def create_all(conn):
     Base.metadata.create_all(conn)
+    URLStatus.insert_predefines()
 
 def drop_all(conn):
     Base.metadata.drop_all(conn)
@@ -257,6 +315,8 @@ if __name__ == '__main__':
     from sqlalchemy.orm import sessionmaker
     engine = create_engine('sqlite:///./moebius.sqlite', poolclass=QueuePool)
     Session = sessionmaker(bind=engine)
+    
+    get_session = Session
 
     if len(sys.argv) > 1:
         cmd = sys.argv[1]
