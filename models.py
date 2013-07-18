@@ -38,9 +38,7 @@ class Schemes(Base):
         session = get_session()
         obj = cls(**kw)
         session.add(obj)
-        session.commit()
-        made = obj.id
-        return session.query(Schemes).get(made)
+        return obj
 
     @classmethod
     def get(self, s):
@@ -74,9 +72,7 @@ class Authorities(Base):
         session = get_session()
         obj = cls(**kw)
         session.add(obj)
-        session.commit()
-        made = obj.id
-        return session.query(Authorities).get(made)
+        return obj
 
     @classmethod
     def get(cls, host, port):
@@ -125,7 +121,6 @@ class URLStatus(Base):
         for x in cls.kind:
             obj = cls(**x)
             session.add(obj)
-        session.commit()
 
     @classmethod
     def resolve(cls, name):
@@ -174,7 +169,6 @@ class URLs(Base):
         session = get_session()
         self.status_id = self.status_id_by_name('Got')
         session.add(self)
-        session.commit()
 
     @classmethod
     def add(cls, scheme, authority, path, params, query, fragment):
@@ -184,13 +178,8 @@ class URLs(Base):
             authority_id= authority.id if authority else None,
             status_id=cls.status_id_by_name('New'),
             path=path, params=params, query=query, fragment=fragment)
-
-
         session.add(obj)
-        session.commit()
-        made = obj.id
-        return session.query(URLs).get(made)
-
+        return obj
 
 
     @classmethod
@@ -277,7 +266,6 @@ class URLs(Base):
                         status_id=cls.status_id_by_name('New'))
                 session.add(found)
 
-        session.commit()
 
 
     @classmethod
@@ -305,7 +293,6 @@ class URLs(Base):
         session = get_session()
         self.status_id = self.status_id_by_name(name)
         session.add(self)
-        session.commit()
 
 
 class Pages(Base):
@@ -332,9 +319,7 @@ class Pages(Base):
 
         obj = cls(**kw)
         session.add(obj)
-        session.commit()
-        made = obj.id
-        return session.query(Pages).get(made)
+        return obj
 
     @classmethod
     def from_id(cls, id):

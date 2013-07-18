@@ -14,15 +14,7 @@ celery = Celery('tasks', broker='amqp://guest@localhost//')
 
 celery.config_from_object('celeryconfig')
 
-if True:
-    from sqlalchemy import create_engine
-    from sqlalchemy.pool import QueuePool
-    from sqlalchemy.orm import scoped_session
-    from sqlalchemy.orm import sessionmaker
-
-    engine = create_engine('sqlite:///./moebius.sqlite', poolclass=QueuePool)
-    conn = engine.connect()
-    models.get_session = scoped_session(sessionmaker(bind=conn, autocommit=True))
+import connection
 
 @celery.task
 def get(location):

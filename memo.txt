@@ -1,7 +1,9 @@
 
-
 いろいろ並行して走るプログラムになるのでメモ。
 
+* process単位でconnection
+* tasksの関数が実行される度にsession.beginして抜けるときにclose
+* unittestと矛盾しないようにしたい
 
 module構成
 

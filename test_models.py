@@ -23,6 +23,7 @@ class BasicTestCase(unittest.TestCase):
     def test_scheme_add_get(self):
         models.Schemes.add(scheme='http')
         s = models.get_session()
+        self.assertFalse(s.id)
         self.assertEqual(1, len(list(s.query(models.Schemes))))
 
     def test_authorities_add(self):
@@ -31,26 +32,28 @@ class BasicTestCase(unittest.TestCase):
         self.assertEqual(1, len(list(s.query(models.Authorities))))
 
     def test_urls_add(self):
-        a = models.URLs.add(scheme='foo', host='example.com', port='8042',
+        s = models.Schemes.add(scheme='foo')
+        a = models.Authorities.add(host='example.com', port='8042')
+        u = models.URLs.add(scheme=s, authority=a,
                 path='/over/there', params='', query='name=ferret', fragment='nose')
         s = models.get_session()
         self.assertEqual(1, len(list(s.query(models.Schemes))))
         self.assertEqual(1, len(list(s.query(models.Authorities))))
         self.assertEqual(1, len(list(s.query(models.URLs))))
-        self.assertEqual('foo://example.com:8042/over/there?name=ferret#nose', a.unparse())
+        self.assertEqual('foo://example.com:8042/over/there?name=ferret#nose', u.unparse())
 
     def test_pages_add(self):
         a = models.Pages.add(
                 url="foo://example.com:8042/over/there?name=ferret#nose",
-                encoding='utf-8',
-                content='foobarbuzz')
+                http_encoding='utf-8',
+                content=b'foobarbuzz')
         s = models.get_session()
         self.assertEqual(1, len(list(s.query(models.Schemes))))
         self.assertEqual(1, len(list(s.query(models.Authorities))))
         self.assertEqual(1, len(list(s.query(models.URLs))))
         self.assertEqual(1, len(list(s.query(models.Pages))))
-        self.assertEqual('foobarbuzz', a.content)
-        self.assertEqual('utf-8', a.encoding)
+        self.assertEqual(b'foobarbuzz', a.content)
+        self.assertEqual('utf-8', a.http_encoding)
 
 
 
