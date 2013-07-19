@@ -8,59 +8,59 @@ from sqlalchemy.pool import QueuePool
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 
-from connection import connect, start, end
+from connection import hub
 import models
-
 
 class BasicTestCase(unittest.TestCase):
     def setUp(self):
-        conn = connect('sqlite:///:memory:')
-        session = start()
-        models.create_all(conn)
-        end()
+        conn = hub.connect('sqlite:///:memory:')
+        with hub.transaction():
+            models.create_all(conn)
 
     def test_scheme_add_get(self):
-        s = start()
-        c = models.Schemes.add(scheme='http')
-        end()
+        with hub.transaction():
+            c = models.Schemes.add(scheme='http')
 
         self.assertEqual('http', c.scheme)
         
-        s = start()
-        self.assertEqual(1, len(list(s.query(models.Schemes))))
-        end()
-
-
+        with hub.transaction() as s:
+            self.assertEqual(1, len(list(s.query(models.Schemes))))
 
 
     def test_authorities_add(self):
-        a = models.Authorities.add(host='example.com', port='8042')
-        s = models.get_session()
-        self.assertEqual(1, len(list(s.query(models.Authorities))))
+        with hub.transaction() as s:
+            a = models.Authorities.add(host='example.com', port='8042')
+
+        with hub.transaction() as s:
+            self.assertEqual(1, len(list(s.query(models.Authorities))))
 
     def test_urls_add(self):
-        s = models.Schemes.add(scheme='foo')
-        a = models.Authorities.add(host='example.com', port='8042')
-        u = models.URLs.add(scheme=s, authority=a,
+        with hub.transaction() as s:
+            c = models.Schemes.add(scheme='foo')
+            a = models.Authorities.add(host='example.com', port='8042')
+            u = models.URLs.add(scheme=c, authority=a,
                 path='/over/there', params='', query='name=ferret', fragment='nose')
-        s = models.get_session()
-        self.assertEqual(1, len(list(s.query(models.Schemes))))
-        self.assertEqual(1, len(list(s.query(models.Authorities))))
-        self.assertEqual(1, len(list(s.query(models.URLs))))
-        self.assertEqual('foo://example.com:8042/over/there?name=ferret#nose', u.unparse())
+
+        with hub.transaction() as s:
+            self.assertEqual(1, len(list(s.query(models.Schemes))))
+            self.assertEqual(1, len(list(s.query(models.Authorities))))
+            self.assertEqual(1, len(list(s.query(models.URLs))))
+            self.assertEqual('foo://example.com:8042/over/there?name=ferret#nose', u.unparse())
 
     def test_pages_add(self):
-        a = models.Pages.add(
+        with hub.transaction() as s:
+            a = models.Pages.add(
                 url="foo://example.com:8042/over/there?name=ferret#nose",
                 http_encoding='utf-8',
                 content=b'foobarbuzz')
-        s = models.get_session()
-        self.assertEqual(1, len(list(s.query(models.Schemes))))
-        self.assertEqual(1, len(list(s.query(models.Authorities))))
-        self.assertEqual(1, len(list(s.query(models.URLs))))
-        self.assertEqual(1, len(list(s.query(models.Pages))))
-        self.assertEqual(b'foobarbuzz', a.content)
-        self.assertEqual('utf-8', a.http_encoding)
+
+        with hub.transaction() as s:
+            self.assertEqual(1, len(list(s.query(models.Schemes))))
+            self.assertEqual(1, len(list(s.query(models.Authorities))))
+            self.assertEqual(1, len(list(s.query(models.URLs))))
+            self.assertEqual(1, len(list(s.query(models.Pages))))
+            self.assertEqual(b'foobarbuzz', a.content)
+            self.assertEqual('utf-8', a.http_encoding)
 
 
 

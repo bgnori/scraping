@@ -1,12 +1,19 @@
 #!/usr/bin/env python
 
+from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.pool import QueuePool
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 import models
 
-class ProcessSession(object):
+class Hub(object):
+    _single = None
+    def __new__(cls):
+        if cls._single is None:
+            cls._single = super(Hub, cls).__new__(cls)
+        return cls._single
+
     def connect(self, uri=None):
         if uri is None:
             uri = 'sqlite:///./moebius.sqlite'
@@ -16,11 +23,18 @@ class ProcessSession(object):
         self.session = None
         return self.conn
 
+    @contextmanager
+    def transaction(self):
+        session = self.start()
+        yield session
+        self.end(session)
+
     def start(self):
         self.session = self.Session()
         return self.session
 
-    def end(self):
+    def end(self, s):
+        assert self.session == s
         self.session.commit()
         self.session = None
 
@@ -28,11 +42,7 @@ class ProcessSession(object):
         assert self.session
         return self.session
 
-_ps = ProcessSession()
+hub = Hub()
 
-connect = _ps.connect
-start = _ps.start
-end = _ps.end
-
-models.get_session = _ps.get
+models.get_session = hub.get
 
