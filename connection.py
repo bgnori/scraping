@@ -7,15 +7,18 @@ from sqlalchemy.orm import sessionmaker
 import models
 
 class ProcessSession(object):
-    def __init__(self, uri=None):
+    def connect(self, uri=None):
         if uri is None:
             uri = 'sqlite:///./moebius.sqlite'
         self.engine = create_engine(uri, poolclass=QueuePool)
         self.conn = self.engine.connect()
         self.Session = sessionmaker(bind=self.conn, autocommit=False)
+        self.session = None
+        return self.conn
 
     def start(self):
         self.session = self.Session()
+        return self.session
 
     def end(self):
         self.session.commit()
@@ -27,6 +30,7 @@ class ProcessSession(object):
 
 _ps = ProcessSession()
 
+connect = _ps.connect
 start = _ps.start
 end = _ps.end
 

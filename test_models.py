@@ -8,23 +8,30 @@ from sqlalchemy.pool import QueuePool
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 
+from connection import connect, start, end
 import models
 
 
 class BasicTestCase(unittest.TestCase):
     def setUp(self):
-        self.engine = create_engine('sqlite:///:memory:', poolclass=QueuePool)
-        conn = self.engine.connect()
-        self.conn = conn
-        models.get_session = scoped_session(sessionmaker(bind=self.conn))
-        s = models.get_session()
-        models.create_all(s.connection())
+        conn = connect('sqlite:///:memory:')
+        session = start()
+        models.create_all(conn)
+        end()
 
     def test_scheme_add_get(self):
-        models.Schemes.add(scheme='http')
-        s = models.get_session()
-        self.assertFalse(s.id)
+        s = start()
+        c = models.Schemes.add(scheme='http')
+        end()
+
+        self.assertEqual('http', c.scheme)
+        
+        s = start()
         self.assertEqual(1, len(list(s.query(models.Schemes))))
+        end()
+
+
+
 
     def test_authorities_add(self):
         a = models.Authorities.add(host='example.com', port='8042')
