@@ -20,6 +20,12 @@ get_session = None
     http://docs.sqlalchemy.org/en/rel_0_8/orm/session.html#thread-local-scope
 """
 
+"""
+Read
+    http://docs.sqlalchemy.org/en/rel_0_8/orm/session.html#unitofwork-cascades
+    to understand cascades
+"""
+
 class Schemes(Base):
     '''
         http://tools.ietf.org/html/rfc3986#section-3
@@ -139,11 +145,17 @@ class URLs(Base):
     '''
     __tablename__ = 'URLs'
     id = Column(Integer, primary_key=True)
-    scheme_id = Column(Integer, ForeignKey(Schemes.id), nullable=False)
-    scheme_obj = relationship(Schemes, primaryjoin=scheme_id==Schemes.id)
+    scheme_id = Column(Integer, 
+            ForeignKey(Schemes.id, onupdate='cascade'), nullable=False)
+    scheme = relationship(Schemes, 
+            primaryjoin="URLs.scheme_id==Schemes.id",
+            cascade='all')
 
-    authority_id = Column(Integer, ForeignKey(Authorities.id), nullable=True)
-    authority_obj = relationship(Authorities, primaryjoin=authority_id==Authorities.id)
+    authority_id = Column(Integer, 
+            ForeignKey(Authorities.id, onupdate='cascade'), nullable=True)
+    authority = relationship(Authorities, 
+            primaryjoin="URLs.authority_id==Authorities.id",
+            cascade='all')
 
 
     path = Column(String, nullable=False)
@@ -151,18 +163,18 @@ class URLs(Base):
     query = Column(String, nullable=False)
     fragment = Column(String, nullable=False)
 
-    status_id = Column(Integer, ForeignKey(URLStatus.id), nullable=False)
-    status_obj = relationship(URLStatus, primaryjoin=status_id==URLStatus.id)
+    status_id = Column(Integer,
+            ForeignKey(URLStatus.id, onupdate='cascade'), nullable=False)
+    status = relationship(URLStatus,
+            primaryjoin="URLs.status_id==URLStatus.id",
+            cascade='all')
     
 
     _cache = {}
 
     @classmethod
     def status_id_by_name(cls, name):
-        r = cls._cache.get(name, None)
-        if r is None:
-            r = URLStatus.resolve(name).id
-            cls._cache[name] = r
+        r = URLStatus.resolve(name)
         return r
 
     def obtained(self):
@@ -174,9 +186,9 @@ class URLs(Base):
     def add(cls, scheme, authority, path, params, query, fragment):
         session = get_session()
         obj = cls(
-            scheme_id=scheme.id,
-            authority_id= authority.id if authority else None,
-            status_id=cls.status_id_by_name('New'),
+            scheme=scheme,
+            authority=authority if authority else None,
+            status=cls.status_id_by_name('New'),
             path=path, params=params, query=query, fragment=fragment)
         session.add(obj)
         return obj
@@ -209,18 +221,6 @@ class URLs(Base):
         if not r:
             r = cls.add(scheme, authority, path, params, query, fragment)
         return r
-
-    @property
-    def authority(self):
-        return self.authority_obj.as_netloc
-    
-    @property
-    def scheme(self):
-        return self.scheme_obj.scheme
-
-    @property
-    def status(self):
-        return self.status_obj.name
 
     
     @classmethod
@@ -276,7 +276,8 @@ class URLs(Base):
 
     def unparse(self):
         ''' we do not expect encoding, that means byte, not string'''
-        return urlunparse((self.scheme, self.authority, self.path, self.params, self.query, self.fragment))
+        return urlunparse((self.scheme.scheme, 
+            self.authority.as_netloc, self.path, self.params, self.query, self.fragment))
 
     @classmethod
     def head(cls):
