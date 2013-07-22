@@ -173,13 +173,13 @@ class URLs(Base):
     _cache = {}
 
     @classmethod
-    def status_id_by_name(cls, name):
+    def status_by_name(cls, name):
         r = URLStatus.resolve(name)
         return r
 
     def obtained(self):
         session = get_session()
-        self.status_id = self.status_id_by_name('Got')
+        self.status = self.status_by_name('Got')
         session.add(self)
 
     @classmethod
@@ -188,7 +188,7 @@ class URLs(Base):
         obj = cls(
             scheme=scheme,
             authority=authority if authority else None,
-            status=cls.status_id_by_name('New'),
+            status=cls.status_by_name('New'),
             path=path, params=params, query=query, fragment=fragment)
         session.add(obj)
         return obj
@@ -257,13 +257,13 @@ class URLs(Base):
             found = query.scalar()
 
             if found is None:
-                found = cls(scheme_id=scheme.id, 
-                        authority_id=authority.id if authority else None,
+                found = cls(scheme=scheme,
+                        authority=authority if authority else None,
                         path=r.path, 
                         params=r.params,
                         query=r.query,
                         fragment=r.fragment,
-                        status_id=cls.status_id_by_name('New'))
+                        status=cls.status_by_name('New'))
                 session.add(found)
 
 
@@ -283,16 +283,16 @@ class URLs(Base):
     def head(cls):
         session = get_session()
         q = session.query(URLs).\
-                filter_by(status_id=cls.status_id_by_name('New')).\
-                filter(URLs.authority_id != None).\
-                filter(URLs.scheme_id != None).\
-                filter(URLs.scheme_id == 1).\
+                filter_by(status=cls.status_by_name('New')).\
+                filter(URLs.authority != None).\
+                filter(URLs.scheme != None).\
+                filter(URLs.scheme == 1).\
                 limit(1)
         return q.scalar()
 
     def mark(self, name):
         session = get_session()
-        self.status_id = self.status_id_by_name(name)
+        self.status = self.status_by_name(name)
         session.add(self)
 
 
@@ -321,11 +321,6 @@ class Pages(Base):
         obj = cls(**kw)
         session.add(obj)
         return obj
-
-    @classmethod
-    def from_id(cls, id):
-        session = get_session()
-        return session.query(Pages).get(id)
 
     @property
     def url(self):
