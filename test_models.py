@@ -14,11 +14,11 @@ import models
 class BasicTestCase(unittest.TestCase):
     def setUp(self):
         conn = hub.connect('sqlite:///:memory:')
-        with hub.transaction():
-            models.create_all(conn)
+        with hub.transaction() as tx:
+            models.create_all(tx)
 
     def test_scheme_add_get(self):
-        with hub.transaction():
+        with hub.transaction() as tx:
             c = models.Schemes.add(scheme='http')
 
         self.assertEqual('http', c.scheme)

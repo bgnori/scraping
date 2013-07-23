@@ -223,50 +223,6 @@ class URLs(Base):
             r = cls.add(scheme, authority, path, params, query, fragment)
         return r
 
-    
-    @classmethod
-    def bulkparse(cls, xs):
-        ''' we do not expect encoding, that means byte, not string'''
-        session = get_session()
-        for s in xs:
-            r = urlparse(s)
-        
-            scheme = session.query(Schemes).filter(Schemes.scheme==r.scheme).scalar()
-            if scheme is None:
-                scheme = Schemes(scheme=r.scheme)
-                session.add(scheme)
-
-            authority = session.query(Authorities).\
-                filter(Authorities.host == r.hostname).\
-                filter(Authorities.port == r.port).\
-                scalar()
-            if authority is None and r.hostname is not None:
-                authority = Authorities(host=r.hostname, port=r.port)
-                session.add(authority)
-
-            query = session.query(URLs).\
-                filter(URLs.scheme_id == scheme.id).\
-                filter(URLs.path == r.path).\
-                filter(URLs.params == r.params).\
-                filter(URLs.query == r.query).\
-                filter(URLs.fragment == r.fragment)
-
-            if authority:
-                query = query.filter(URLs.authority_id == authority.id)
-
-            found = query.scalar()
-
-            if found is None:
-                found = cls(scheme=scheme,
-                        authority=authority if authority else None,
-                        path=r.path, 
-                        params=r.params,
-                        query=r.query,
-                        fragment=r.fragment,
-                        status=cls.status_by_name('New'))
-                session.add(found)
-
-
 
     @classmethod
     def parse(cls, s):
@@ -333,12 +289,12 @@ class Pages(Base):
 
 
 def create_all(session):
-    Base.metadata.create_all(s.connection())
+    Base.metadata.create_all(session.connection())
     URLStatus.insert_predefines(session)
     session.commit()
 
 def drop_all(session):
-    Base.metadata.drop_all(s.connection())
+    Base.metadata.drop_all(session.connection())
 
 
 if __name__ == '__main__':

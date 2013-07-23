@@ -34,10 +34,9 @@ def parse(page_id):
         page = models.Pages.from_id(page_id)
         t = lxml.html.fromstring(page.content)
         t.make_links_absolute(page.url)
-        def foo():
-            for elem, attr, link, pos in t.iterlinks(): 
-                yield link
-        models.URLs.bulkparse(foo())
+        for elem, attr, link, pos in t.iterlinks(): 
+            print(link)
+            models.URLs.parse(link)
 
 @celery.task
 def fetch():
