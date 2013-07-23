@@ -122,8 +122,7 @@ class URLStatus(Base):
     )
 
     @classmethod
-    def insert_predefines(cls):
-        session = get_session()
+    def insert_predefines(cls, session):
         for x in cls.kind:
             obj = cls(**x)
             session.add(obj)
@@ -164,7 +163,9 @@ class URLs(Base):
     fragment = Column(String, nullable=False)
 
     status_id = Column(Integer,
-            ForeignKey(URLStatus.id, onupdate='cascade'), nullable=False)
+            ForeignKey(URLStatus.id, onupdate='cascade'), 
+            default=lambda: URLStatus.resolve('New'),
+            nullable=False)
     status = relationship(URLStatus,
             primaryjoin="URLs.status_id==URLStatus.id",
             cascade='all')
@@ -227,7 +228,6 @@ class URLs(Base):
     def bulkparse(cls, xs):
         ''' we do not expect encoding, that means byte, not string'''
         session = get_session()
-        session.begin()
         for s in xs:
             r = urlparse(s)
         
@@ -286,7 +286,7 @@ class URLs(Base):
                 filter_by(status=cls.status_by_name('New')).\
                 filter(URLs.authority != None).\
                 filter(URLs.scheme != None).\
-                filter(URLs.scheme == 1).\
+                filter(Schemes.scheme == 'http').\
                 limit(1)
         return q.scalar()
 
@@ -326,14 +326,19 @@ class Pages(Base):
     def url(self):
         return self.url_obj.unparse()
 
+    @classmethod
+    def from_id(cls, page_id):
+        session = get_session()
+        return session.query(Pages).filter(Pages.id == page_id).scalar()
 
 
-def create_all(conn):
-    Base.metadata.create_all(conn)
-    URLStatus.insert_predefines()
+def create_all(session):
+    Base.metadata.create_all(s.connection())
+    URLStatus.insert_predefines(session)
+    session.commit()
 
-def drop_all(conn):
-    Base.metadata.drop_all(conn)
+def drop_all(session):
+    Base.metadata.drop_all(s.connection())
 
 
 if __name__ == '__main__':
@@ -355,9 +360,9 @@ if __name__ == '__main__':
         if cmd=='show':
             pass
         elif cmd=='create':
-            create_all(s.connection())
+            create_all(s)
         elif cmd=='drop':
-            drop_all(s.connection())
+            drop_all(s)
         else:
             pass
     finally:

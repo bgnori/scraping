@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 
 from tasks import parse
-import connection
+from connection import hub
 
-
-connection.start()
+hub.connect()
 parse(1)
-connection.end()
 

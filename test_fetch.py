@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
-import connection
 from tasks import fetch 
+from connection import hub
+
+hub.connect()
 
 fetch()
 
