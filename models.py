@@ -240,13 +240,13 @@ class URLs(Base):
                 filter(URLs.scheme_id == scheme.id).\
                 filter(URLs.path == r.path).\
                 filter(URLs.params == r.params).\
-                filter(URLs.query == r.query)
+                filter(URLs.query == r.query).\
+                filter_by(status=cls.status_by_name('Got'))
 
         if authority:
             query = query.filter(URLs.authority_id == authority.id)
 
-        found = query.scalar()
-        return found
+        return query.count() > 0
 
     @classmethod
     def head(cls):

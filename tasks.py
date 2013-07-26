@@ -45,13 +45,19 @@ def parse(page_id):
 
 @celery.task
 def fetch():
-    with hub.transaction():
-        u = models.URLs.head()
-        url = u.unparse()
-        print(url)
-        if pat.match(url) and models.URLs.is_known(url):
-            get.delay(u.unparse())
-            u.mark('Requested')
-        else:
-            u.mark('Ignored')
+    done = False
+    while not done:
+        with hub.transaction():
+            u = models.URLs.head()
+            if u is None:
+                done = True
+                continue
+            url = u.unparse()
+            print(url)
+            if pat.match(url) and not models.URLs.is_known(url):
+                get.delay(u.unparse())
+                done = True
+                u.mark('Requested')
+            else:
+                u.mark('Ignored')
 
