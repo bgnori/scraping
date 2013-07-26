@@ -15,8 +15,6 @@ CELERY_IMPORTS = ("tasks", )
 CELERY_RESULT_BACKEND = "database"
 CELERY_RESULT_DBURI = "sqlite:///./celery.db"
 
-CELERY_ANNOTATIONS = {"tasks.add": {"rate_limit": "10/s"}}
-
 CELERYBEAT_SCHEDULE = {
     'get-every-30-seconds': {
         'task': 'tasks.fetch',

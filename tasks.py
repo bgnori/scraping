@@ -3,18 +3,22 @@
 
 import lxml.html
 
-
 import requests
 
 from celery import Celery
 
 import models
 
-celery = Celery('tasks', broker='amqp://guest@localhost//')
-
+celery = Celery('tasks')
 celery.config_from_object('celeryconfig')
 
 from connection import hub
+
+hub.connect()
+
+from project import pat_maker
+
+pat  = pat_maker()
 
 @celery.task
 def get(location):
@@ -22,10 +26,11 @@ def get(location):
 
     if r.status_code == 200:
         with hub.transaction():
-            models.Pages.add(url=location, http_encoding=r.encoding,
+            p = models.Pages.add(url=location, http_encoding=r.encoding,
                     content=r.content)
             u = models.URLs.parse(location)
             u.mark('Got')
+            parse.delay(p.id)
 
 
 @celery.task
@@ -42,10 +47,9 @@ def parse(page_id):
 def fetch():
     with hub.transaction():
         u = models.URLs.head()
-        assert u
-        print(u.unparse())
-        print(u.status)
-        if u.authority_id == 1:
+        url = u.unparse()
+        print(url)
+        if pat.match(url) and models.URLs.is_known(url):
             get.delay(u.unparse())
             u.mark('Requested')
         else:

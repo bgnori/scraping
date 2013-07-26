@@ -171,17 +171,11 @@ class URLs(Base):
             cascade='all')
     
 
-    _cache = {}
-
     @classmethod
     def status_by_name(cls, name):
         r = URLStatus.resolve(name)
         return r
 
-    def obtained(self):
-        session = get_session()
-        self.status = self.status_by_name('Got')
-        session.add(self)
 
     @classmethod
     def add(cls, scheme, authority, path, params, query, fragment):
@@ -234,6 +228,25 @@ class URLs(Base):
         ''' we do not expect encoding, that means byte, not string'''
         return urlunparse((self.scheme.scheme, 
             self.authority.as_netloc, self.path, self.params, self.query, self.fragment))
+
+    @classmethod
+    def is_known(cls, url):
+        r = urlparse(url)
+        session = get_session()
+        scheme = Schemes.have(r.scheme)
+        authority = Authorities.have(r.hostname, r.port)
+
+        query = session.query(URLs).\
+                filter(URLs.scheme_id == scheme.id).\
+                filter(URLs.path == r.path).\
+                filter(URLs.params == r.params).\
+                filter(URLs.query == r.query)
+
+        if authority:
+            query = query.filter(URLs.authority_id == authority.id)
+
+        found = query.scalar()
+        return found
 
     @classmethod
     def head(cls):

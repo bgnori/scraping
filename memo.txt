@@ -24,3 +24,7 @@ parser
   DB内に確保してあるpageをparseしてほしいデータを取り出す
 
 
+todo
+同じurlを取りに行かないようにする。
+ fragmentを無視して同一性を調べる
+
